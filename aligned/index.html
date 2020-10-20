@@ -11,6 +11,9 @@ const ship_stats = {
   none: {
     base_mass: 0,
     base_inertia_modifier: 0,
+    command_skill_name: "",
+    low_slots: 0,
+    rig_slots: 0,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -21,6 +24,8 @@ const ship_stats = {
     base_mass: 1270000,
     base_inertia_modifies: 2.6,
     command_skill_name: "Frigate",
+    low_slots: 3,
+    rig_slots: 2,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -31,6 +36,8 @@ const ship_stats = {
     base_mass: 1430000,
     base_inertia_modifier: 2.45,
     command_skill_name: "Frigate",
+    low_slots: 3,
+    rig_slots: 2,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -41,6 +48,8 @@ const ship_stats = {
     base_mass: 1147000,
     base_inertia_modifier: 2.6,
     command_skill_name: "Frigate",
+    low_slots: 3,
+    rig_slots: 2,
     bonuses: {
       inertia: {
         base: [0, 0.05, 0.1, 0.15, 0.2, 0.25]
@@ -51,6 +60,8 @@ const ship_stats = {
     base_mass: 1271000,
     base_inertia_modifier: 2.65,
     command_skill_name: "Frigate",
+    low_slots: 3,
+    rig_slots: 2,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -61,6 +72,8 @@ const ship_stats = {
     base_mass: 12625000,
     base_inertia_modifier: 0.69,
     command_skill_name: "Industrial Ship",
+    low_slots: 3,
+    rig_slots: 2,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -71,6 +84,8 @@ const ship_stats = {
     base_mass: 11500000,
     base_inertia_modifier: 0.68,
     command_skill_name: "Industrial Ship",
+    low_slots: 3,
+    rig_slots: 2,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -81,6 +96,8 @@ const ship_stats = {
     base_mass: 20000000,
     base_inertia_modifier: 0.5,
     command_skill_name: "Industrial Ship",
+    low_slots: 3,
+    rig_slots: 3,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -91,6 +108,8 @@ const ship_stats = {
     base_mass: 1600000,
     base_inertia_modifier: 2.2,
     command_skill_name: "Industrial Ship",
+    low_slots: 3,
+    rig_slots: 2,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -101,6 +120,8 @@ const ship_stats = {
     base_mass: 12800000,
     base_inertia_modifier: 0.46,
     command_skill_name: "Battlecruiser",
+    low_slots: 5,
+    rig_slots: 3,
     bonuses: {
       inertia: {
         base: [0, 0, 0, 0, 0, 0]
@@ -215,6 +236,35 @@ function refresh_command_skill_label() {
   expert_skill_label.textContent = `Expert ${command_skill_name} Command skill level`;
 }
 
+function list_of_modules() {
+  return Array.from(document.querySelector("#module-list").querySelectorAll("select")).map(module => module.value);
+}
+
+function list_of_rigs() {
+  return Array.from(document.querySelector("#rig-list").querySelectorAll("select")).map(rig => rig.value);
+}
+
+function clear_modules() {
+  document.querySelector("#module-list").innerHTML = "";
+}
+
+function clear_rigs() {
+  document.querySelector("#rig-list").innerHTML = "";
+}
+
+function reset_modules_and_rigs() {
+  clear_modules();
+  clear_rigs();
+
+  const selected_ship = document.querySelector("#ships").value;
+  const number_of_low_slots = ship_stats[selected_ship].low_slots;
+  const number_of_rig_slots = ship_stats[selected_ship].rig_slots;
+  for (var i=0; i<number_of_low_slots; i++)
+    add_module();
+  for (var i=0; i<number_of_rig_slots; i++)
+    add_rig();
+}
+
 function add_module() {
   var module_select = document.createElement("select")
   module_select.addEventListener("change", recalculate_align_time)
@@ -232,14 +282,6 @@ function add_module() {
 
   const module_list = document.querySelector("#module-list");
   module_list.appendChild(module_select);
-}
-
-function list_of_modules() {
-  return Array.from(document.querySelector("#module-list").querySelectorAll("select")).map(module => module.value);
-}
-
-function list_of_rigs() {
-  return Array.from(document.querySelector("#rig-list").querySelectorAll("select")).map(rig => rig.value);
 }
 
 function add_rig() {
@@ -266,7 +308,7 @@ function add_rig() {
   <body onload="populate_ship_list()">
     <div>
      <label for="ships">Choose ship:</label>
-     <select name="ships" id="ships" onchange="recalculate_align_time(); refresh_command_skill_label()">
+     <select name="ships" id="ships" onchange="recalculate_align_time(); refresh_command_skill_label(); reset_modules_and_rigs()">
        <option value="none">---</option>
      </select> 
     </div>
@@ -301,11 +343,11 @@ function add_rig() {
      </select>
     </div>
     <div>
-     <button id="add-module" type="button" onclick="add_module()">Add module</button>
+      Low slots
      <span id="module-list"></span>
     </div>
     <div>
-     <button id="add-rig" type="button" onclick="add_rig()">Add rig</button>
+      Rig slots
      <span id="rig-list"></span>
     </div>
      <p>Ship's inertial modifier: <span id="inertial-modifier"></p>
