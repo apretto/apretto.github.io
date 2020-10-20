@@ -1,0 +1,245 @@
+<html>
+  <head>
+    <script>
+
+const frigate_command_bonus = [0, 0.05, 0.1, 0.15, 0.2, 0.25];
+const advanced_frigate_command_bonus = [0, 0.02, 0.04, 0.06, 0.08, 0.1];
+const expert_frigate_command_bonus = [0, 0.02, 0.04, 0.06, 0.08, 0.1];
+
+const ship_stats = {
+  none: {
+    base_mass: 0,
+    base_inertia_modifier: 0,
+    bonuses: {
+      inertia: {
+        frigate_command_level: [0, 0, 0, 0, 0, 0]
+      }
+    }
+  },
+  heron_covert_ops: {
+    base_mass: 1270000,
+    base_inertia_modifies: 2.6,
+    bonuses: {
+      inertia: {
+        frigate_command_level: [0, 0, 0, 0, 0, 0]
+      }
+    }
+  },
+  probe_covert_ops: {
+    base_mass: 1430000,
+    base_inertia_modifier: 2.45,
+    bonuses: {
+      inertia: {
+        frigate_command_level: [0, 0, 0, 0, 0, 0]
+      }
+    }
+  },
+  magnate_covert_ops: {
+    base_mass: 1147000,
+    base_inertia_modifier: 2.6,
+    bonuses: {
+      inertia: {
+        frigate_command_level: [0, 0.05, 0.1, 0.15, 0.2, 0.25]
+      }
+    }
+  },
+  imicus_covert_ops: {
+    base_mass: 1271000,
+    base_inertia_modifier: 2.65,
+    bonuses: {
+      inertia: {
+        frigate_command_level: [0, 0, 0, 0, 0, 0]
+      }
+    }
+  }
+};
+
+const module_stats = {
+  "---": {
+    inertia_bonus: 0
+  },
+  mk3_inertial_stabilizer: {
+    inertia_bonus: 0.173
+  },
+  mk5_inertial_stabilizer: {
+    inertia_bonus: 0.179
+  },
+  mk7_inertial_stabilizer: {
+    inertia_bonus: 0.185
+  },
+  basic_inertial_stabilizer: {
+    inertia_bonus: 0.197
+  },
+  federation_navy_inertial_stabilizer: {
+    inertia_bonus: 0.203
+  },
+  republic_fleet_inertial_stabilizer: {
+    inertia_bonus: 0.203
+  },
+  syntetic_hull_inertial_stabilizer: {
+    inertia_bonus: 0.215
+  }
+}
+
+const rig_stats = {
+  "---": {
+    inertia_bonus: 0
+  },
+  polycarbon_engine_housing_i: {
+    inertia_bonus: 0.1
+  },
+  polycarbon_engine_housing_ii: {
+    inertia_bonus: 0.15
+  }
+}
+
+function calculate_effective_inertia_modifier(ship_name, command_skill_level, advanced_command_skill_level, expert_command_skill_level, modules, rigs) {
+  // base_inertia * basic_frig * (1 - ((1- adv_frig) * penalty))  * ship_bonus * basic_istab * (1-((1-istab_bonus) * penalty)) * (1 - (mk5_istab * .571))
+  const base_ship_inertia_modifier = ship_stats[ship_name].base_inertia_modifier;
+  const total_skill_bonus = 1 - (
+    (1 - frigate_command_bonus[command_skill_level]) *
+    (1 - advanced_frigate_command_bonus[advanced_command_skill_level]) *
+    (1 - expert_frigate_command_bonus[expert_command_skill_level]));
+
+  const total_ship_bonus = ship_stats[ship_name].bonuses.inertia.frigate_command_level[command_skill_level];
+
+  const modules_and_rigs_base_bonus_list = modules.map((module_name) => module_stats[module_name].inertia_bonus).concat(rigs.map((rig_name) => rig_stats[rig_name].inertia_bonus));
+  //console.log(modules_and_rigs_base_bonus_list);
+
+  const modules_and_rigs_bonus_list = modules_and_rigs_base_bonus_list.sort().reverse().map((bonus, index) => bonus * Math.E ** (-1 * (index/2.67)**2));
+  //console.log(modules_and_rigs_bonus_list);
+
+  const total_modules_and_rigs_bonus = 1 - modules_and_rigs_bonus_list.reduce((accumulated_bonus, bonus) => (1 - (bonus)) * accumulated_bonus, 1);
+  //console.log(total_modules_and_rigs_bonus);
+
+  return base_ship_inertia_modifier * (1 - total_ship_bonus) * (1 - total_skill_bonus) * (1 - total_modules_and_rigs_bonus);
+}
+
+function calculate_align_time(ship_name, command_skill_level, advanced_command_skill_level, expert_command_skill_level, modules, rigs) {
+  const effective_inertial_modifier = calculate_effective_inertia_modifier(ship_name, command_skill_level, advanced_command_skill_level, expert_command_skill_level, modules, rigs);
+  return (Math.log(2) / 500000) * ship_stats[ship_name].base_mass * effective_inertial_modifier;
+}
+
+function populate_ship_list() {
+  const ships_names = Object.keys(ship_stats);
+  const ship_select = document.querySelector("#ships");
+  for(ship_name of ships_names) {
+    if (ship_name === "none") continue;
+    var option_entry = document.createElement("option");
+    option_entry.value = ship_name;
+    option_entry.text = ship_name.replace(/_/g, " ");
+    ship_select.appendChild(option_entry);
+  }
+}
+
+function recalculate_align_time() {
+  const selected_ship = document.querySelector("#ships").value;
+  const frigate_command_level = document.querySelector("#frigate-command").value;
+  const advanced_frigate_command_level = document.querySelector("#advanced-frigate-command").value;
+  const expert_frigate_command_level = document.querySelector("#expert-frigate-command").value;
+  const modules = list_of_modules();
+  const rigs = list_of_rigs();
+
+  const inertial_display = document.querySelector("#inertial-modifier");
+  inertial_display.textContent = calculate_effective_inertia_modifier(selected_ship, frigate_command_level, advanced_frigate_command_level, expert_frigate_command_level, modules, rigs);
+  const align_time = document.querySelector("#align-time");
+  align_time.textContent = "10s";
+  align_time.textContent = calculate_align_time(selected_ship, frigate_command_level, advanced_frigate_command_level, expert_frigate_command_level, modules, rigs);
+}
+
+function add_module() {
+  var module_select = document.createElement("select")
+  module_select.addEventListener("change", recalculate_align_time)
+
+  const module_id = `module_numer_${list_of_modules().length}`;
+  module_select.id = module_id;
+
+  const module_names = Object.keys(module_stats);
+  for(module_name of module_names) {
+    var option_entry = document.createElement("option");
+    option_entry.value = module_name;
+    option_entry.text = module_name.replace(/_/g, " ");
+    module_select.appendChild(option_entry);
+  }
+
+  const module_list = document.querySelector("#module-list");
+  module_list.appendChild(module_select);
+}
+
+function list_of_modules() {
+  return Array.from(document.querySelector("#module-list").querySelectorAll("select")).map(module => module.value);
+}
+
+function list_of_rigs() {
+  return Array.from(document.querySelector("#rig-list").querySelectorAll("select")).map(rig => rig.value);
+}
+
+function add_rig() {
+  var rig_select = document.createElement("select")
+  rig_select.addEventListener("change", recalculate_align_time)
+
+  const rig_id = `rig_numer_${list_of_rigs().length}`;
+  rig_select.id = rig_id;
+
+  const rig_names = Object.keys(rig_stats);
+  for(rig_name of rig_names) {
+    var option_entry = document.createElement("option");
+    option_entry.value = rig_name;
+    option_entry.text = rig_name.replace(/_/g, " ");
+    rig_select.appendChild(option_entry);
+  }
+
+  const rig_list = document.querySelector("#rig-list");
+  rig_list.appendChild(rig_select);
+}</script>
+    <title>Ship Align Time simulator</title>
+  </head>
+  <body onload="populate_ship_list()">
+    <div>
+     <label for="ships">Choose ship:</label>
+     <select name="ships" id="ships" onchange="recalculate_align_time()">
+       <option value="none">---</option>
+     </select> 
+    </div>
+
+    <div>
+     <label for="frigate-command">Frigate Command skill level</label>
+     <select name"frigate-command" id="frigate-command" onchange="recalculate_align_time()">
+       <option value="0">---</option>
+       <option value="1">1</option>
+       <option value="2">2</option>
+       <option value="3">3</option>
+       <option value="4">4</option>
+       <option value="5">5</option>
+     </select>
+     <label for="advanced-frigate-command">Advanced Frigate Command skill level</label>
+     <select name"advanced-frigate-command" id="advanced-frigate-command" onchange="recalculate_align_time()">
+       <option value="0">---</option>
+       <option value="1">1</option>
+       <option value="2">2</option>
+       <option value="3">3</option>
+       <option value="4">4</option>
+       <option value="5">5</option>
+     </select>
+     <label for="expert-frigate-command">Advanced Frigate Command skill level</label>
+     <select name"expert-frigate-command" id="expert-frigate-command" onchange="recalculate_align_time()">
+       <option value="0">---</option>
+       <option value="1">1</option>
+       <option value="2">2</option>
+       <option value="3">3</option>
+       <option value="4">4</option>
+       <option value="5">5</option>
+     </select>
+    </div>
+    <div>
+     <button id="add-module" type="button" onclick="add_module()">Add module</button>
+     <span id="module-list"></span>
+    </div>
+    <div>
+     <button id="add-rig" type="button" onclick="add_rig()">Add rig</button>
+     <span id="rig-list"></span>
+    </div>
+     <p>Ship's inertial modifier: <span id="inertial-modifier"></p>
+     <p>Ship's align time: <span id="align-time"></p>
+  </body>
+</html>
